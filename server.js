@@ -1,130 +1,149 @@
-// server.js (Final - Ekstraksi dari .docx berdasarkan urutan)
-
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
-const ImageModule = require('docxtemplater-image-module-free');
+const imageModule = require('docxtemplater-image-module-free');
+const { imageSize } = require('image-size'); // Impor Anda dipertahankan
 
 const app = express();
-const PORT = 3000;
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const port = 3000;
 app.use(express.static('public'));
+// Limit ukuran payload dipertahankan
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
-const upload = multer({ dest: uploadDir });
-
-// INI ADALAH BAGIAN PALING PENTING
-// "Kontrak" antara template eviden dan server. 
-// Urutan placeholder di sini HARUS SAMA PERSIS dengan urutan gambar di dalam file EVIDEN.docx
-const placeholderOrder = [
-    'port1', 'port2', 'port3', 'port4', 'port5', 'port6', 'port7', 'port8', 'in_odp',
-    'port9', 'port10', 'port11', 'port12', 'port13', 'port14', 'port15', 'port16', 'input', // <-- Ini harusnya "in_odp" atau "input"? Sesuaikan dengan template BACT Anda. Saya asumsikan "input".
-    'label_odp', 'termin', 'barcode',
-    'whwl', 'pralon', 'valins', // <-- Tambahan dari .doc baru, sesuaikan jika perlu
-    'output_ps_1_4', 'spliter', 'distri', // <-- Ganti nama agar valid
-    'feeder', 'odc', 'mo',
-    'join_branching_1', 'join_branching_2', 'progress_k3',
-    'eviden_geledek', 'rumah_calang', 'survei_odc',
-    'odp_cl' // <-- Tambahan dari .doc baru
+const uploadFields = [
+    { name: 'foto_odp', maxCount: 1 }, { name: 'klem_ring', maxCount: 1 },
+    { name: 'pipa', maxCount: 1 }, { name: 'closure', maxCount: 1 },
+    { name: 'in_odc', maxCount: 1 }, { name: 'testcom', maxCount: 1 },
+    { name: 'port1', maxCount: 1 }, { name: 'port2', maxCount: 1 },
+    { name: 'port3', maxCount: 1 }, { name: 'port4', maxCount: 1 },
+    { name: 'port5', maxCount: 1 }, { name: 'port6', maxCount: 1 },
+    { name: 'port7', maxCount: 1 }, { name: 'port8', maxCount: 1 },
+    { name: 'in_odp', maxCount: 1 }, { name: 'label_odp', maxCount: 1 },
+    { name: 'termin', maxCount: 1 }, { name: 'barcode', maxCount: 1 },
+    { name: 'splitter', maxCount: 1 }, { name: 'distri', maxCount: 1 },
+    { name: 'feeder', maxCount: 1 }, { name: 'odc', maxCount: 1 },
+    { name: 'survey', maxCount: 1 }, { name: 'survey2', maxCount: 1 },
+    { name: 'branching', maxCount: 1 }, { name: 'end_to_end', maxCount: 1 },
+    { name: 'mancore', maxCount: 1 }, { name: 'peta', maxCount: 1 }
 ];
+const upload = multer({ dest: 'uploads/' });
 
-app.post('/generate-bact', upload.single('eviden_docx'), (req, res) => {
-    const tempImagePaths = [];
-    if (req.file) tempImagePaths.push(req.file.path); // Untuk menghapus file .docx upload
+// Handler utama yang bisa digunakan kembali
+const documentHandler = (req, res, templateName, outputPrefix) => {
+    const uploadedFilePaths = [];
+    if (req.files) {
+        for (const key in req.files) {
+            req.files[key].forEach(file => uploadedFilePaths.push(file.path));
+        }
+    }
 
     try {
-        if (!req.file) {
-            return res.status(400).send('Tidak ada file eviden .docx yang diunggah.');
-        }
-
-        // 1. Ekstrak Gambar dari Eviden.docx
-        const evidenContent = fs.readFileSync(req.file.path);
-        const evidenZip = new PizZip(evidenContent);
-        
-        const imageFiles = evidenZip.file(/word\/media\//);
-        if (!imageFiles || imageFiles.length === 0) {
-            return res.status(400).send('Tidak ada gambar yang ditemukan di dalam file .docx yang diunggah.');
+        const templatePath = path.resolve(__dirname, 'templates', templateName);
+        if (!fs.existsSync(templatePath)) {
+            return res.status(500).send(`Error: Template ${templateName} tidak ditemukan.`);
         }
         
-        const imageData = {};
-
-        // Urutkan gambar berdasarkan nama file bawaan (image1, image2, dst.)
-        imageFiles.sort((a, b) => {
-            const numA = parseInt(a.name.match(/\d+/)[0], 10);
-            const numB = parseInt(b.name.match(/\d+/)[0], 10);
-            return numA - numB;
-        });
-
-        imageFiles.forEach((imgFile, index) => {
-            if (index < placeholderOrder.length) {
-                const placeholderName = placeholderOrder[index];
-                const buffer = imgFile.asNodeBuffer();
-                const extension = path.extname(imgFile.name);
-                
-                const tempPath = path.join(uploadDir, `${Date.now()}-${placeholderName}${extension}`);
-                fs.writeFileSync(tempPath, buffer);
-                
-                imageData[placeholderName] = tempPath;
-                tempImagePaths.push(tempPath);
+        // Logika data Anda dipertahankan
+        const data = { 'NAMA LOP': req.body.nama_lop || '' };
+        uploadFields.forEach(field => {
+            const placeholderName = field.name;
+            if (req.files && req.files[placeholderName] && req.files[placeholderName][0]) {
+                data[placeholderName] = req.files[placeholderName][0].path;
+            } else if (req.body[placeholderName]) {
+                data[placeholderName] = req.body[placeholderName]; // dukung base64
+            } else {
+                data[placeholderName] = false;
             }
         });
 
-        // 2. Isi Template BACT dengan Gambar yang Sudah Diekstrak
-        const templatePath = path.join(__dirname, 'templates', 'BACT_Template.docx');
-        if (!fs.existsSync(templatePath)) {
-            return res.status(500).send('File template BACT_Template.docx tidak ditemukan di server.');
-        }
+        if (data['label_odp'] && !data['foto_odp']) data['foto_odp'] = data['label_odp'];
+        if (data['foto_odp'] && !data['label_odp']) data['label_odp'] = data['foto_odp'];
         
+        // Logika generate dokumen
         const content = fs.readFileSync(templatePath, 'binary');
         const zip = new PizZip(content);
-        
-        const imageOpts = {
-            centered: false,
-            getImage: (tag) => fs.readFileSync(tag),
-            getSize: () => [150, 150], // Sesuaikan ukuran default jika perlu
-        };
-        const imageModule = new ImageModule(imageOpts);
+        const doc = new Docxtemplater(zip, {
+            paragraphLoop: true, linebreaks: true,
+            modules: [new imageModule({
+                centered: false,
+                getImage: (tag) => {
+                    if (!tag) return null;
+                    if (typeof tag === 'string' && tag.startsWith('data:image')) {
+                        return Buffer.from(tag.split(',')[1], 'base64');
+                    }
+                    if (fs.existsSync(tag)) return fs.readFileSync(tag);
+                    return null;
+                },
+                getSize: (imgBuffer, tag) => {
+  if (!imgBuffer) return [150, 150];
+  let dims;
+  try {
+    dims = imageSize(imgBuffer);
+  } catch (e) {
+    return [150, 150];
+  }
 
-        const doc = new Docxtemplater(zip, { modules: [imageModule], paragraphLoop: true, linebreaks: true });
+  if (tag === 'end_to_end') {
+    const targetW = 672; // 17,76 cm
+    const ratio = targetW / dims.width;
+    return [targetW, Math.round(dims.height * ratio)];
+  }
 
-        const dataToRender = { NAMA_LOP: req.body.nama_lop || 'N/A' };
-        placeholderOrder.forEach(key => {
-            dataToRender[key] = imageData[key] || false;
+  if (tag === 'mancore') {
+    const targetW = 1008; // 26,67 cm
+    const ratio = targetW / dims.width;
+    return [targetW, Math.round(dims.height * ratio)];
+  }
+
+  if (tag === 'peta') {
+    const targetW = 787; // 20,81 cm
+    const ratio = targetW / dims.width;
+    return [targetW, Math.round(dims.height * ratio)];
+  }
+
+  // default: ukuran asli
+  return [dims.width, dims.height];
+}
+
+            })],
         });
 
-        doc.render(dataToRender);
-        
-        const buf = doc.getZip().generate({ type: 'nodebuffer' });
-        
-        const sanitizedLop = (req.body.nama_lop || 'UNTITLED').replace(/[\s/]/g, '_');
-        const fileName = `BACT ${sanitizedLop}.docx`;
+        doc.render(data);
 
+        const buf = doc.getZip().generate({ type: 'nodebuffer' });
+        const sanitized = (req.body.nama_lop || 'Generated').replace(/\s+/g, '_');
+        const fileName = `${outputPrefix}-${sanitized}.docx`;
         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         res.send(buf);
 
     } catch (error) {
-        console.error('Error generating document:', error);
-        res.status(500).send('Terjadi kesalahan saat membuat dokumen. Cek konsol server untuk detail.');
+        console.error('Error:', error);
+        res.status(500).send('Terjadi error saat membuat dokumen. Pastikan template sudah benar.');
     } finally {
-        // Hapus semua file sementara (docx upload dan gambar hasil ekstrak)
-        tempImagePaths.forEach(p => {
-            fs.unlink(p, (err) => {
-                if (err) console.error(`Gagal menghapus file sementara: ${p}`, err);
+        uploadedFilePaths.forEach(filePath => {
+            fs.unlink(filePath, (err) => {
+                if (err) console.error(`Gagal menghapus file sementara: ${filePath}`, err);
             });
         });
-        console.log('File sementara telah dibersihkan.');
+        console.log("File-file sementara telah dibersihkan.");
     }
+};
+
+// Endpoint terpisah untuk BACT
+app.post('/generate-bact', upload.fields(uploadFields), (req, res) => {
+    documentHandler(req, res, 'BACT_Template.docx', 'BACT');
 });
 
-app.listen(PORT, () => {
-    console.log(`Server berjalan di http://localhost:${PORT}`);
+// Endpoint terpisah untuk BAUT
+app.post('/generate-baut', upload.fields(uploadFields), (req, res) => {
+    documentHandler(req, res, 'BAUT_Template.docx', 'BAUT');
+});
+
+app.listen(port, () => {
+    console.log(`Server berjalan di http://localhost:${port}`);
 });
