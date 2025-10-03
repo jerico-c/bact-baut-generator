@@ -3,110 +3,299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BACT Generator Otomatis</title>
+    <title>BACT & BAUT Generator</title>
     <style>
         :root {
-            --primary-color: #e60000;
-            --secondary-color: #f4f4f4;
-            --border-color: #ccc;
-            --border-radius: 8px;
-            --font-family: 'Arial', sans-serif;
+            --primary-color: #e60000; --secondary-color: #f4f4f4; --border-color: #ccc;
+            --border-radius: 8px; --font-family: 'Arial', sans-serif;
+            --active-color: #007bff; --active-shadow: 0 0 0 3px rgba(0, 123, 255, 0.5);
+            --baut-color: #28a745;
         }
         body { font-family: var(--font-family); background-color: var(--secondary-color); margin: 0; padding: 2rem; color: #333; }
-        .container { max-width: 800px; margin: auto; background: #fff; padding: 2rem; border-radius: var(--border-radius); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .container { max-width: 1200px; margin: auto; background: #fff; padding: 2rem; border-radius: var(--border-radius); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h1 { color: var(--primary-color); text-align: center; border-bottom: 2px solid var(--secondary-color); padding-bottom: 1rem; }
-        form { display: flex; flex-direction: column; gap: 1.5rem; }
-        fieldset { border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; }
+        fieldset { border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; margin-bottom: 1.5rem; }
         legend { font-weight: bold; color: var(--primary-color); padding: 0 0.5rem; }
-        .input-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
         input[type="text"] { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--border-radius); box-sizing: border-box; }
-        .drop-zone { border: 2px dashed var(--border-color); border-radius: var(--border-radius); padding: 2rem; text-align: center; cursor: pointer; transition: background-color 0.2s, border-color 0.2s; position: relative; }
-        .drop-zone:hover { border-color: var(--primary-color); }
-        .drop-zone--over { background-color: #ffeded; border-style: solid; border-color: var(--primary-color); }
-        .drop-zone__input { display: none; }
-        .drop-zone__prompt { font-size: 1rem; color: #555; }
-        .drop-zone__filename { font-weight: bold; color: var(--primary-color); margin-top: 1rem; display: block; }
-        .submit-btn { background-color: var(--primary-color); color: white; padding: 1rem; border: none; border-radius: var(--border-radius); font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
-        .submit-btn:hover { background-color: #c00; }
+        
+        .paste-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .paste-zone {
+            border: 2px dashed var(--border-color); border-radius: var(--border-radius);
+            height: 150px; display: flex; flex-direction: column; justify-content: center;
+            align-items: center; text-align: center; cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            position: relative; overflow: hidden;
+        }
+        .paste-zone__prompt { background: rgba(255,255,255,0.8); padding: 0.25rem; border-radius: 4px; font-size: 0.9em; position: absolute; bottom: 5px; }
+        .paste-zone--listening { border-style: solid; border-color: var(--active-color); box-shadow: var(--active-shadow); }
+        .paste-zone--has-image .paste-zone__prompt { opacity: 0; transition: opacity 0.2s; }
+        .paste-zone--has-image:hover .paste-zone__prompt { opacity: 1; }
+        .paste-zone img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        .button-group { display: flex; gap: 1rem; }
+        .submit-btn {
+            flex: 1;
+            background-color: var(--primary-color); color: white; padding: 1rem;
+            border: none; border-radius: var(--border-radius); font-size: 1.2rem;
+            font-weight: bold; cursor: pointer; transition: background-color 0.2s;
+        }
+        .submit-btn#bautBtn { background-color: var(--baut-color); }
+        .submit-btn:hover { opacity: 0.9; }
+        .submit-btn:disabled { background-color: #999; cursor: not-allowed; }
+        
+        /* Style untuk area daftar gambar yang kurang */
+        #missingFilesTextarea { width: 100%; height: 200px; margin-top: 1rem; font-family: monospace; white-space: pre; background-color: #f8f9fa; border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; box-sizing: border-box; }
+        #copyBtn { background-color: #6c757d; margin-top: 0.5rem; }
     </style>
 </head>
 <body>
-
     <div class="container">
-        <h1>BACT Generator Otomatis</h1>
-        <p>Isi nama LOP, lalu unggah file **EVIDEN.docx** untuk membuat dokumen BACT secara otomatis.</p>
-        
-        <form id="bactForm" method="POST" action="/generate-bact" enctype="multipart/form-data">
-            
+        <h1>BACT & BAUT Generator</h1>
+        <p><strong>Cara Penggunaan:</strong> Isi nama LOP, lalu tempelkan (Ctrl+V) atau drag & drop gambar ke masing-masing kotak di bawah.</p>
+
+        <form id="generatorForm">
             <fieldset>
                 <legend>Informasi Proyek</legend>
-                <div class="input-group">
-                    <label for="nama_lop">Nama Lokasi Proyek (LOP)</label>
-                    <input type="text" id="nama_lop" name="nama_lop" required>
-                </div>
+                <input type="text" id="nama_lop" name="nama_lop" placeholder="Masukkan Nama Lokasi Proyek (LOP)" required>
             </fieldset>
 
             <fieldset>
-                <legend>Upload File Eviden</legend>
-                <div class="drop-zone">
-                    <span class="drop-zone__prompt">Seret & lepas file EVIDEN.docx di sini, atau klik untuk memilih</span>
-                    <span class="drop-zone__filename"></span>
-                    <input type="file" name="eviden_docx" class="drop-zone__input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
-                </div>
+                <legend>Upload / Paste / Drag & Drop Gambar Bukti</legend>
+                <div class="paste-grid" id="pasteGrid"></div>
             </fieldset>
             
-            <button type="submit" class="submit-btn">Generate Dokumen BACT</button>
+            <div class="button-group">
+                <button type="button" id="bactBtn" class="submit-btn">Generate BACT</button>
+                <button type="button" id="bautBtn" class="submit-btn">Generate BAUT</button>
+            </div>
+
+            <fieldset id="missingFilesSection" style="display: none;">
+                <legend>Daftar Gambar yang Kurang</legend>
+                <textarea id="missingFilesTextarea" readonly></textarea>
+                <button type="button" id="copyBtn" class="submit-btn">Copy Daftar</button>
+            </fieldset>
         </form>
     </div>
 
     <script>
-        document.querySelectorAll(".drop-zone").forEach(dropZoneElement => {
-            const inputElement = dropZoneElement.querySelector(".drop-zone__input");
-            const promptElement = dropZoneElement.querySelector(".drop-zone__prompt");
-            const filenameElement = dropZoneElement.querySelector(".drop-zone__filename");
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('pasteGrid');
+            const lopInput = document.getElementById('nama_lop');
+            const bactBtn = document.getElementById('bactBtn');
+            const bautBtn = document.getElementById('bautBtn');
+            const missingFilesSection = document.getElementById('missingFilesSection');
+            const missingFilesTextarea = document.getElementById('missingFilesTextarea');
+            const copyBtn = document.getElementById('copyBtn');
 
-            // Fungsi ini akan memicu input file saat kotak di-klik
-            dropZoneElement.addEventListener("click", e => {
-                inputElement.click();
-            });
+            // Daftar placeholder di kode
+            const placeholders = [
+                'foto_odp', 'klem_ring', 'pipa', 'closure', 'in_odc', 'testcom', 'port1', 
+                'port2', 'port3', 'port4', 'port5', 'port6', 'port7', 'port8', 'in_odp', 
+                'label_odp', 'termin', 'barcode', 'splitter', 'distri', 'feeder', 'odc', 
+                'survey', 'survey2', 'branching', 'end_to_end', 'mancore', 'peta'
+            ];
+            
+            // PETA NAMA: dari nama placeholder di kode -> ke nama yang ingin ditampilkan
+            const labelMap = {
+                'klem_ring': 'KLEM-RING-5-LUBANG',
+                'closure': 'SC-OF-SM-24',
+                'in_odc': 'Redaman Input ODC',
+                'testcom': 'TESTCOM',
+                'in_odp': 'IN ODP',
+                'barcode': 'BARCODE',
+                'splitter': 'SPLIITER 1:4',
+                'distri': 'PANEL DISTRIBUSI',
+                'feeder': 'FEEDER',
+                'odc': 'FOTO ODC',
+                'survey': 'SURVEY',
+                'survey2': 'SURVEY 2', // Anda bisa sesuaikan
+                'branching': 'SAMBUNGAN BRANCHING',
+                'foto_odp': 'ODP-PB-8-8 Solid lengkap',
+                'pipa': 'Pipa paralon',
+                'label_odp': 'LABEL ODP',
+                'termin': 'TERMINASI',
+                'end_to_end': 'FORM OPM',
+                'mancore': 'MANCORE',
+                'peta': 'PETA LOKASI'
+            };
 
-            // Fungsi ini akan memperbarui nama file saat dipilih
-            inputElement.addEventListener("change", e => {
-                if (inputElement.files.length) {
-                    updateThumbnail(inputElement.files[0]);
-                }
-            });
+            let activeZone = null;
+            const imageStorage = {}; 
 
-            // --- Fungsi untuk Drag and Drop ---
-            dropZoneElement.addEventListener("dragover", e => {
-                e.preventDefault();
-                dropZoneElement.classList.add("drop-zone--over");
-            });
+            // ... (Fungsi `handleFile` dan pembuatan grid tetap sama) ...
+            const handleFile = (file, zone) => {
+                const placeholderName = zone.dataset.placeholder;
+                imageStorage[placeholderName] = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    zone.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    zone.appendChild(img);
+                    const prompt = document.createElement('span');
+                    prompt.className = 'paste-zone__prompt';
+                    prompt.textContent = placeholderName.replace(/_/g, ' ').toUpperCase();
+                    zone.appendChild(prompt);
+                    zone.classList.add('paste-zone--has-image');
+                };
+                reader.readAsDataURL(file);
+            };
 
-            ["dragleave", "dragend"].forEach(type => {
-                dropZoneElement.addEventListener(type, e => {
-                    dropZoneElement.classList.remove("drop-zone--over");
+            placeholders.forEach(name => {
+                const zone = document.createElement('div');
+                zone.className = 'paste-zone';
+                zone.dataset.placeholder = name;
+                const prompt = document.createElement('span');
+                prompt.className = 'paste-zone__prompt';
+                prompt.textContent = name.replace(/_/g, ' ').toUpperCase();
+                zone.appendChild(prompt);
+                grid.appendChild(zone);
+                zone.addEventListener('click', () => {
+                    if (activeZone) activeZone.classList.remove('paste-zone--listening');
+                    activeZone = zone;
+                    activeZone.classList.add('paste-zone--listening');
+                });
+                zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('paste-zone--listening'); activeZone = zone; });
+                zone.addEventListener('dragleave', () => zone.classList.remove('paste-zone--listening'));
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('paste-zone--listening');
+                    if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0], zone);
                 });
             });
 
-            dropZoneElement.addEventListener("drop", e => {
-                e.preventDefault();
-
-                if (e.dataTransfer.files.length) {
-                    inputElement.files = e.dataTransfer.files;
-                    updateThumbnail(e.dataTransfer.files[0]);
+            window.addEventListener('paste', event => {
+                if (event.target === lopInput) return;
+                if (!activeZone) return;
+                event.preventDefault();
+                const items = event.clipboardData.items;
+                for (const item of items) {
+                    if (item.type.indexOf('image') !== -1) {
+                        const blob = item.getAsFile();
+                        const placeholderName = activeZone.dataset.placeholder;
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            activeZone.innerHTML = '';
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            activeZone.appendChild(img);
+                            const prompt = document.createElement('span');
+                            prompt.className = 'paste-zone__prompt';
+                            prompt.textContent = placeholderName.replace(/_/g, ' ').toUpperCase();
+                            activeZone.appendChild(prompt);
+                            activeZone.classList.add('paste-zone--has-image');
+                            imageStorage[placeholderName] = e.target.result;
+                        };
+                        reader.readAsDataURL(blob);
+                        break;
+                    }
                 }
-
-                dropZoneElement.classList.remove("drop-zone--over");
             });
 
-            function updateThumbnail(file) {
-                promptElement.style.display = 'none'; // Sembunyikan prompt
-                filenameElement.textContent = file.name; // Tampilkan nama file
-            }
+            const handleGenerate = async (endpoint, button) => {
+                if (!lopInput.value) {
+                    alert('Nama LOP tidak boleh kosong!');
+                    lopInput.focus();
+                    return;
+                }
+
+                // --- LOGIKA BARU UNTUK MENGECEK GAMBAR YANG KURANG ---
+                const missingItems = [];
+                let isPortMissing = false;
+                const uniquePlaceholders = [...new Set(placeholders)]; // Hapus duplikat seperti 'in_odc'
+
+                uniquePlaceholders.forEach(ph => {
+                    if (!imageStorage.hasOwnProperty(ph)) {
+                        if (ph.startsWith('port')) {
+                            isPortMissing = true;
+                        } else {
+                            // Cari nama di peta label, jika tidak ada gunakan nama placeholder
+                            const label = labelMap[ph] || ph.toUpperCase();
+                            missingItems.push(label);
+                        }
+                    }
+                });
+
+                if (isPortMissing) {
+                    missingItems.push('PORT');
+                }
+
+                if (missingItems.length > 0) {
+                    const outputText = `${lopInput.value}\nKURANG\n${missingItems.join('\n')}`;
+                    missingFilesTextarea.value = outputText;
+                    missingFilesSection.style.display = 'block';
+                } else {
+                    missingFilesSection.style.display = 'none';
+                }
+                // --- AKHIR LOGIKA BARU ---
+
+
+                const originalText = button.textContent;
+                button.textContent = 'Membuat Dokumen...';
+                button.disabled = true;
+
+                const formData = new FormData();
+                formData.append('nama_lop', lopInput.value);
+
+                for (const name in imageStorage) {
+                    const value = imageStorage[name];
+                    if (typeof value === 'string') {
+                        formData.append(name, value);
+                    } else {
+                        formData.append(name, value, value.name);
+                    }
+                }
+
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Server: ${errorText}`);
+                    }
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    const disposition = response.headers.get('Content-Disposition');
+                    let filename = "Generated_Document.docx";
+                    if (disposition && disposition.indexOf('attachment') !== -1) {
+                        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                        const matches = filenameRegex.exec(disposition);
+                        if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
+                    }
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                } catch (error) {
+                    console.error('Gagal membuat dokumen:', error);
+                    alert(`Terjadi kesalahan: ${error.message}`);
+                } finally {
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }
+            };
+            
+            bactBtn.addEventListener('click', () => handleGenerate('/generate-bact', bactBtn));
+            bautBtn.addEventListener('click', () => handleGenerate('/generate-baut', bautBtn));
+
+            // Event listener untuk tombol copy
+            copyBtn.addEventListener('click', () => {
+                missingFilesTextarea.select();
+                document.execCommand('copy');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Tersalin!';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 1500);
+            });
         });
     </script>
-
 </body>
 </html>
