@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BACT Generator Otomatis</title>
+    <style>
+        :root {
+            --primary-color: #e60000;
+            --secondary-color: #f4f4f4;
+            --border-color: #ccc;
+            --border-radius: 8px;
+            --font-family: 'Arial', sans-serif;
+        }
+        body { font-family: var(--font-family); background-color: var(--secondary-color); margin: 0; padding: 2rem; color: #333; }
+        .container { max-width: 800px; margin: auto; background: #fff; padding: 2rem; border-radius: var(--border-radius); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: var(--primary-color); text-align: center; border-bottom: 2px solid var(--secondary-color); padding-bottom: 1rem; }
+        form { display: flex; flex-direction: column; gap: 1.5rem; }
+        fieldset { border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; }
+        legend { font-weight: bold; color: var(--primary-color); padding: 0 0.5rem; }
+        .input-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+        input[type="text"] { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--border-radius); box-sizing: border-box; }
+        .drop-zone { border: 2px dashed var(--border-color); border-radius: var(--border-radius); padding: 2rem; text-align: center; cursor: pointer; transition: background-color 0.2s, border-color 0.2s; position: relative; }
+        .drop-zone:hover { border-color: var(--primary-color); }
+        .drop-zone--over { background-color: #ffeded; border-style: solid; border-color: var(--primary-color); }
+        .drop-zone__input { display: none; }
+        .drop-zone__prompt { font-size: 1rem; color: #555; }
+        .drop-zone__filename { font-weight: bold; color: var(--primary-color); margin-top: 1rem; display: block; }
+        .submit-btn { background-color: var(--primary-color); color: white; padding: 1rem; border: none; border-radius: var(--border-radius); font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .submit-btn:hover { background-color: #c00; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>BACT Generator Otomatis</h1>
+        <p>Isi nama LOP, lalu unggah file **EVIDEN.docx** untuk membuat dokumen BACT secara otomatis.</p>
+        
+        <form id="bactForm" method="POST" action="/generate-bact" enctype="multipart/form-data">
+            
+            <fieldset>
+                <legend>Informasi Proyek</legend>
+                <div class="input-group">
+                    <label for="nama_lop">Nama Lokasi Proyek (LOP)</label>
+                    <input type="text" id="nama_lop" name="nama_lop" required>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Upload File Eviden</legend>
+                <div class="drop-zone">
+                    <span class="drop-zone__prompt">Seret & lepas file EVIDEN.docx di sini, atau klik untuk memilih</span>
+                    <span class="drop-zone__filename"></span>
+                    <input type="file" name="eviden_docx" class="drop-zone__input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                </div>
+            </fieldset>
+            
+            <button type="submit" class="submit-btn">Generate Dokumen BACT</button>
+        </form>
+    </div>
+
+    <script>
+        document.querySelectorAll(".drop-zone").forEach(dropZoneElement => {
+            const inputElement = dropZoneElement.querySelector(".drop-zone__input");
+            const promptElement = dropZoneElement.querySelector(".drop-zone__prompt");
+            const filenameElement = dropZoneElement.querySelector(".drop-zone__filename");
+
+            // Fungsi ini akan memicu input file saat kotak di-klik
+            dropZoneElement.addEventListener("click", e => {
+                inputElement.click();
+            });
+
+            // Fungsi ini akan memperbarui nama file saat dipilih
+            inputElement.addEventListener("change", e => {
+                if (inputElement.files.length) {
+                    updateThumbnail(inputElement.files[0]);
+                }
+            });
+
+            // --- Fungsi untuk Drag and Drop ---
+            dropZoneElement.addEventListener("dragover", e => {
+                e.preventDefault();
+                dropZoneElement.classList.add("drop-zone--over");
+            });
+
+            ["dragleave", "dragend"].forEach(type => {
+                dropZoneElement.addEventListener(type, e => {
+                    dropZoneElement.classList.remove("drop-zone--over");
+                });
+            });
+
+            dropZoneElement.addEventListener("drop", e => {
+                e.preventDefault();
+
+                if (e.dataTransfer.files.length) {
+                    inputElement.files = e.dataTransfer.files;
+                    updateThumbnail(e.dataTransfer.files[0]);
+                }
+
+                dropZoneElement.classList.remove("drop-zone--over");
+            });
+
+            function updateThumbnail(file) {
+                promptElement.style.display = 'none'; // Sembunyikan prompt
+                filenameElement.textContent = file.name; // Tampilkan nama file
+            }
+        });
+    </script>
+
+</body>
+</html>
