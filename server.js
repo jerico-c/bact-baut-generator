@@ -5,12 +5,12 @@ const fs = require('fs');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const imageModule = require('docxtemplater-image-module-free');
-const { imageSize } = require('image-size'); // Impor Anda dipertahankan
+// PERBAIKAN: Cara impor 'image-size' yang benar
+const {imageSize} = require('image-size');
 
 const app = express();
 const port = 3000;
 app.use(express.static('public'));
-// Limit ukuran payload dipertahankan
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -32,7 +32,6 @@ const uploadFields = [
 ];
 const upload = multer({ dest: 'uploads/' });
 
-// Handler utama yang bisa digunakan kembali
 const documentHandler = (req, res, templateName, outputPrefix) => {
     const uploadedFilePaths = [];
     if (req.files) {
@@ -47,14 +46,32 @@ const documentHandler = (req, res, templateName, outputPrefix) => {
             return res.status(500).send(`Error: Template ${templateName} tidak ditemukan.`);
         }
         
-        // Logika data Anda dipertahankan
         const data = { 'NAMA LOP': req.body.nama_lop || '' };
+
+        // --- ### PENAMBAHAN FITUR: LOGIKA PERHITUNGAN BoQ ### ---
+        if (outputPrefix === 'BAUT') {
+            const boqItemCount = 9; // Sesuaikan jika jumlah item BoQ berubah
+            for (let i = 1; i <= boqItemCount; i++) {
+                const kontrak = parseInt(req.body[`boq_${i}_kontrak`] || '0', 10);
+                const aktual = parseInt(req.body[`boq_${i}_aktual`] || '0', 10);
+                const selisih = aktual - kontrak;
+                const tambah = selisih > 0 ? selisih : 0;
+                const kurang = selisih < 0 ? Math.abs(selisih) : 0;
+
+                data[`boq_${i}_kontrak`] = kontrak;
+                data[`boq_${i}_aktual`] = aktual;
+                data[`boq_${i}_tambah`] = tambah;
+                data[`boq_${i}_kurang`] = kurang;
+            }
+        }
+        // --- ### AKHIR PENAMBAHAN FITUR ### ---
+
         uploadFields.forEach(field => {
             const placeholderName = field.name;
             if (req.files && req.files[placeholderName] && req.files[placeholderName][0]) {
                 data[placeholderName] = req.files[placeholderName][0].path;
             } else if (req.body[placeholderName]) {
-                data[placeholderName] = req.body[placeholderName]; // dukung base64
+                data[placeholderName] = req.body[placeholderName];
             } else {
                 data[placeholderName] = false;
             }
@@ -63,7 +80,6 @@ const documentHandler = (req, res, templateName, outputPrefix) => {
         if (data['label_odp'] && !data['foto_odp']) data['foto_odp'] = data['label_odp'];
         if (data['foto_odp'] && !data['label_odp']) data['label_odp'] = data['foto_odp'];
         
-        // Logika generate dokumen
         const content = fs.readFileSync(templatePath, 'binary');
         const zip = new PizZip(content);
         const doc = new Docxtemplater(zip, {
@@ -79,36 +95,25 @@ const documentHandler = (req, res, templateName, outputPrefix) => {
                     return null;
                 },
                 getSize: (imgBuffer, tag) => {
-  if (!imgBuffer) return [150, 150];
-  let dims;
-  try {
-    dims = imageSize(imgBuffer);
-  } catch (e) {
-    return [150, 150];
-  }
-
-  if (tag === 'end_to_end') {
-    const targetW = 672; // 17,76 cm
-    const ratio = targetW / dims.width;
-    return [targetW, Math.round(dims.height * ratio)];
-  }
-
-  if (tag === 'mancore') {
-    const targetW = 1008; // 26,67 cm
-    const ratio = targetW / dims.width;
-    return [targetW, Math.round(dims.height * ratio)];
-  }
-
-  if (tag === 'peta') {
-    const targetW = 787; // 20,81 cm
-    const ratio = targetW / dims.width;
-    return [targetW, Math.round(dims.height * ratio)];
-  }
-
-  // default: ukuran asli
-  return [dims.width, dims.height];
-}
-
+                    if (!imgBuffer) return [150, 150];
+                    const dimensions = imageSize(imgBuffer); // Sekarang akan berfungsi
+                    if (tag === 'end_to_end') {
+                        const targetWidth = 672;
+                        const ratio = targetWidth / dimensions.width;
+                        return [targetWidth, Math.round(dimensions.height * ratio)];
+                    }
+                    if (tag === 'mancore') {
+                        const targetWidth = 1008;
+                        const ratio = targetWidth / dimensions.width;
+                        return [targetWidth, Math.round(dimensions.height * ratio)];
+                    }
+                    if (tag === 'peta') {
+                        const targetWidth = 787;
+                        const ratio = targetWidth / dimensions.width;
+                        return [targetWidth, Math.round(dimensions.height * ratio)];
+                    }
+                    return [dimensions.width, dimensions.height];
+                }
             })],
         });
 
@@ -116,7 +121,7 @@ const documentHandler = (req, res, templateName, outputPrefix) => {
 
         const buf = doc.getZip().generate({ type: 'nodebuffer' });
         const sanitized = (req.body.nama_lop || 'Generated').replace(/\s+/g, '_');
-        const fileName = `${outputPrefix}-${sanitized}.docx`;
+        const fileName = `${outputPrefix} ${sanitized}.docx`;
         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         res.send(buf);
@@ -134,16 +139,14 @@ const documentHandler = (req, res, templateName, outputPrefix) => {
     }
 };
 
-// Endpoint terpisah untuk BACT
 app.post('/generate-bact', upload.fields(uploadFields), (req, res) => {
     documentHandler(req, res, 'BACT_Template.docx', 'BACT');
 });
 
-// Endpoint terpisah untuk BAUT
 app.post('/generate-baut', upload.fields(uploadFields), (req, res) => {
     documentHandler(req, res, 'BAUT_Template.docx', 'BAUT');
 });
 
 app.listen(port, () => {
-    console.log(`Server berjalan di http://localhost:${port}`);
+    console.log(`🚀 Server berjalan di http://localhost:${port}`);
 });
