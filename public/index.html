@@ -43,20 +43,41 @@
         .submit-btn:hover { opacity: 0.9; }
         .submit-btn:disabled { background-color: #999; cursor: not-allowed; }
         
-        /* Style untuk area daftar gambar yang kurang */
         #missingFilesTextarea { width: 100%; height: 200px; margin-top: 1rem; font-family: monospace; white-space: pre; background-color: #f8f9fa; border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; box-sizing: border-box; }
         #copyBtn { background-color: #6c757d; margin-top: 0.5rem; }
+        
+        .boq-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .boq-table th, .boq-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
+        .boq-table th { background-color: #f2f2f2; }
+        .boq-table td:first-child, .boq-table td:nth-child(3), .boq-table td:nth-child(4) { text-align: center; }
+        .boq-table input[type="number"] { width: 80px; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center;}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>BACT & BAUT Generator</h1>
-        <p><strong>Cara Penggunaan:</strong> Isi nama LOP, lalu tempelkan (Ctrl+V) atau drag & drop gambar ke masing-masing kotak di bawah.</p>
+        <p><strong>Cara Penggunaan:</strong> Isi semua data yang diperlukan, lalu tempelkan (Ctrl+V) atau drag & drop gambar ke masing-masing kotak di bawah.</p>
 
         <form id="generatorForm">
             <fieldset>
                 <legend>Informasi Proyek</legend>
                 <input type="text" id="nama_lop" name="nama_lop" placeholder="Masukkan Nama Lokasi Proyek (LOP)" required>
+            </fieldset>
+
+            <fieldset>
+                <legend>Detail Bill of Quantity (BoQ) - untuk BAUT</legend>
+                <table class="boq-table">
+                    <thead>
+                        <tr>
+                            <th>NO</th>
+                            <th>URAIAN PEKERJAAN</th>
+                            <th>KONTRAK</th>
+                            <th>AKTUAL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="boq-body">
+                        </tbody>
+                </table>
             </fieldset>
 
             <fieldset>
@@ -83,46 +104,38 @@
             const lopInput = document.getElementById('nama_lop');
             const bactBtn = document.getElementById('bactBtn');
             const bautBtn = document.getElementById('bautBtn');
+            const boqBody = document.getElementById('boq-body');
+            const generatorForm = document.getElementById('generatorForm');
             const missingFilesSection = document.getElementById('missingFilesSection');
             const missingFilesTextarea = document.getElementById('missingFilesTextarea');
             const copyBtn = document.getElementById('copyBtn');
 
-            // Daftar placeholder di kode
-            const placeholders = [
-                'foto_odp', 'klem_ring', 'pipa', 'closure', 'in_odc', 'testcom', 'port1', 
-                'port2', 'port3', 'port4', 'port5', 'port6', 'port7', 'port8', 'in_odp', 
-                'label_odp', 'termin', 'barcode', 'splitter', 'distri', 'feeder', 'odc', 
-                'survey', 'survey2', 'branching', 'end_to_end', 'mancore', 'peta'
+            const boqItems = [
+                "SC-OF-SM-24", "OS-SM-1", "PC-APC/UPC-652-A1", "PC-UPC-652-2", "ODP Solid-PB-8 AS",
+                "PS-1-4-ODC", "PU-AS", "AC-OF-SM-ADSS-12D", "Survey PT2 Simple"
             ];
-            
-            // PETA NAMA: dari nama placeholder di kode -> ke nama yang ingin ditampilkan
+            boqItems.forEach((item, index) => {
+                const i = index + 1;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${i}</td>
+                    <td>${item}</td>
+                    <td><input type="number" name="boq_${i}_kontrak" value="0" min="0"></td>
+                    <td><input type="number" name="boq_${i}_aktual" value="0" min="0"></td>
+                `;
+                boqBody.appendChild(row);
+            });
+
+            const placeholders = [
+                'foto_odp', 'klem_ring', 'pipa', 'closure', 'in_odc', 'testcom', 'port1', 'port2', 'port3', 'port4', 'port5', 'port6', 'port7', 'port8', 'in_odp', 'label_odp', 'termin', 'barcode', 'splitter', 'distri', 'feeder', 'odc', 'survey', 'survey2', 'branching', 'end_to_end', 'mancore', 'peta'
+            ];
             const labelMap = {
-                'klem_ring': 'KLEM-RING-5-LUBANG',
-                'closure': 'SC-OF-SM-24',
-                'in_odc': 'Redaman Input ODC',
-                'testcom': 'TESTCOM',
-                'in_odp': 'IN ODP',
-                'barcode': 'BARCODE',
-                'splitter': 'SPLIITER 1:4',
-                'distri': 'PANEL DISTRIBUSI',
-                'feeder': 'FEEDER',
-                'odc': 'FOTO ODC',
-                'survey': 'SURVEY',
-                'survey2': 'SURVEY 2', // Anda bisa sesuaikan
-                'branching': 'SAMBUNGAN BRANCHING',
-                'foto_odp': 'ODP-PB-8-8 Solid lengkap',
-                'pipa': 'Pipa paralon',
-                'label_odp': 'LABEL ODP',
-                'termin': 'TERMINASI',
-                'end_to_end': 'FORM OPM',
-                'mancore': 'MANCORE',
-                'peta': 'PETA LOKASI'
+                'klem_ring': 'KLEM-RING-5-LUBANG', 'closure': 'SC-OF-SM-24', 'in_odc': 'Redaman Input ODC', 'testcom': 'TESTCOM', 'in_odp': 'IN ODP', 'barcode': 'BARCODE', 'splitter': 'SPLIITER 1:4', 'distri': 'PANEL DISTRIBUSI', 'feeder': 'FEEDER', 'odc': 'FOTO ODC', 'survey': 'SURVEY', 'survey2': 'SURVEY 2', 'branching': 'SAMBUNGAN BRANCHING', 'foto_odp': 'ODP-PB-8-8 Solid lengkap', 'pipa': 'Pipa paralon', 'label_odp': 'LABEL ODP', 'termin': 'TERMINASI', 'end_to_end': 'FORM OPM', 'mancore': 'MANCORE', 'peta': 'PETA LOKASI'
             };
 
             let activeZone = null;
-            const imageStorage = {}; 
+            const imageStorage = {};
 
-            // ... (Fungsi `handleFile` dan pembuatan grid tetap sama) ...
             const handleFile = (file, zone) => {
                 const placeholderName = zone.dataset.placeholder;
                 imageStorage[placeholderName] = file;
@@ -199,27 +212,20 @@
                     return;
                 }
 
-                // --- LOGIKA BARU UNTUK MENGECEK GAMBAR YANG KURANG ---
                 const missingItems = [];
                 let isPortMissing = false;
-                const uniquePlaceholders = [...new Set(placeholders)]; // Hapus duplikat seperti 'in_odc'
-
+                const uniquePlaceholders = [...new Set(placeholders)];
                 uniquePlaceholders.forEach(ph => {
                     if (!imageStorage.hasOwnProperty(ph)) {
                         if (ph.startsWith('port')) {
                             isPortMissing = true;
                         } else {
-                            // Cari nama di peta label, jika tidak ada gunakan nama placeholder
                             const label = labelMap[ph] || ph.toUpperCase();
                             missingItems.push(label);
                         }
                     }
                 });
-
-                if (isPortMissing) {
-                    missingItems.push('PORT');
-                }
-
+                if (isPortMissing) missingItems.push('PORT');
                 if (missingItems.length > 0) {
                     const outputText = `${lopInput.value}\nKURANG\n${missingItems.join('\n')}`;
                     missingFilesTextarea.value = outputText;
@@ -227,16 +233,12 @@
                 } else {
                     missingFilesSection.style.display = 'none';
                 }
-                // --- AKHIR LOGIKA BARU ---
-
 
                 const originalText = button.textContent;
                 button.textContent = 'Membuat Dokumen...';
                 button.disabled = true;
 
-                const formData = new FormData();
-                formData.append('nama_lop', lopInput.value);
-
+                const formData = new FormData(generatorForm);
                 for (const name in imageStorage) {
                     const value = imageStorage[name];
                     if (typeof value === 'string') {
@@ -247,11 +249,7 @@
                 }
 
                 try {
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        body: formData,
-                    });
-
+                    const response = await fetch(endpoint, { method: 'POST', body: formData });
                     if (!response.ok) {
                         const errorText = await response.text();
                         throw new Error(`Server: ${errorText}`);
@@ -285,15 +283,12 @@
             bactBtn.addEventListener('click', () => handleGenerate('/generate-bact', bactBtn));
             bautBtn.addEventListener('click', () => handleGenerate('/generate-baut', bautBtn));
 
-            // Event listener untuk tombol copy
             copyBtn.addEventListener('click', () => {
                 missingFilesTextarea.select();
                 document.execCommand('copy');
                 const originalText = copyBtn.textContent;
                 copyBtn.textContent = 'Tersalin!';
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                }, 1500);
+                setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
             });
         });
     </script>
