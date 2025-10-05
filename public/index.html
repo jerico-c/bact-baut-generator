@@ -50,7 +50,7 @@
         .boq-table th, .boq-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
         .boq-table th { background-color: #f2f2f2; }
         .boq-table td:first-child, .boq-table td:nth-child(3), .boq-table td:nth-child(4) { text-align: center; }
-        .boq-table input[type="number"] { width: 80px; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center;}
+        .boq-table input[type="number"] { width: 95%; box-sizing: border-box; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center;}
     </style>
 </head>
 <body>
@@ -75,8 +75,7 @@
                             <th>AKTUAL</th>
                         </tr>
                     </thead>
-                    <tbody id="boq-body">
-                        </tbody>
+                    <tbody id="boq-body"></tbody>
                 </table>
             </fieldset>
 
@@ -120,8 +119,8 @@
                 row.innerHTML = `
                     <td>${i}</td>
                     <td>${item}</td>
-                    <td><input type="number" name="boq_${i}_kontrak" value="0" min="0"></td>
-                    <td><input type="number" name="boq_${i}_aktual" value="0" min="0"></td>
+                    <td><input type="number" class="boq-input" name="boq_${i}_kontrak" value="0" min="0"></td>
+                    <td><input type="number" class="boq-input" name="boq_${i}_aktual" value="0" min="0"></td>
                 `;
                 boqBody.appendChild(row);
             });
@@ -129,9 +128,7 @@
             const placeholders = [
                 'foto_odp', 'klem_ring', 'pipa', 'closure', 'in_odc', 'testcom', 'port1', 'port2', 'port3', 'port4', 'port5', 'port6', 'port7', 'port8', 'in_odp', 'label_odp', 'termin', 'barcode', 'splitter', 'distri', 'feeder', 'odc', 'survey', 'survey2', 'branching', 'end_to_end', 'mancore', 'peta'
             ];
-            const labelMap = {
-                'klem_ring': 'KLEM-RING-5-LUBANG', 'closure': 'SC-OF-SM-24', 'in_odc': 'Redaman Input ODC', 'testcom': 'TESTCOM', 'in_odp': 'IN ODP', 'barcode': 'BARCODE', 'splitter': 'SPLIITER 1:4', 'distri': 'PANEL DISTRIBUSI', 'feeder': 'FEEDER', 'odc': 'FOTO ODC', 'survey': 'SURVEY', 'survey2': 'SURVEY 2', 'branching': 'SAMBUNGAN BRANCHING', 'foto_odp': 'ODP-PB-8-8 Solid lengkap', 'pipa': 'Pipa paralon', 'label_odp': 'LABEL ODP', 'termin': 'TERMINASI', 'end_to_end': 'FORM OPM', 'mancore': 'MANCORE', 'peta': 'PETA LOKASI'
-            };
+            const labelMap = { 'klem_ring': 'KLEM-RING-5-LUBANG', 'closure': 'SC-OF-SM-24', 'in_odc': 'Redaman Input ODC', 'testcom': 'TESTCOM', 'in_odp': 'IN ODP', 'barcode': 'BARCODE', 'splitter': 'SPLIITER 1:4', 'distri': 'PANEL DISTRIBUSI', 'feeder': 'FEEDER', 'odc': 'FOTO ODC', 'survey': 'SURVEY', 'survey2': 'SURVEY 2', 'branching': 'SAMBUNGAN BRANCHING', 'foto_odp': 'ODP-PB-8-8 Solid lengkap', 'pipa': 'Pipa paralon', 'label_odp': 'LABEL ODP', 'termin': 'TERMINASI', 'end_to_end': 'FORM OPM', 'mancore': 'MANCORE', 'peta': 'PETA LOKASI' };
 
             let activeZone = null;
             const imageStorage = {};
@@ -179,30 +176,33 @@
 
             window.addEventListener('paste', event => {
                 if (event.target === lopInput) return;
-                if (!activeZone) return;
-                event.preventDefault();
-                const items = event.clipboardData.items;
-                for (const item of items) {
-                    if (item.type.indexOf('image') !== -1) {
-                        const blob = item.getAsFile();
-                        const placeholderName = activeZone.dataset.placeholder;
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            activeZone.innerHTML = '';
-                            const img = document.createElement('img');
-                            img.src = e.target.result;
-                            activeZone.appendChild(img);
-                            const prompt = document.createElement('span');
-                            prompt.className = 'paste-zone__prompt';
-                            prompt.textContent = placeholderName.replace(/_/g, ' ').toUpperCase();
-                            activeZone.appendChild(prompt);
-                            activeZone.classList.add('paste-zone--has-image');
-                            imageStorage[placeholderName] = e.target.result;
-                        };
-                        reader.readAsDataURL(blob);
-                        break;
+                
+                if (activeZone) { // Hanya proses jika zona gambar aktif
+                    const items = event.clipboardData.items;
+                    for (const item of items) {
+                        if (item.type.indexOf('image') !== -1) {
+                            event.preventDefault();
+                            const blob = item.getAsFile();
+                            const placeholderName = activeZone.dataset.placeholder;
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                activeZone.innerHTML = '';
+                                const img = document.createElement('img');
+                                img.src = e.target.result;
+                                activeZone.appendChild(img);
+                                const prompt = document.createElement('span');
+                                prompt.className = 'paste-zone__prompt';
+                                prompt.textContent = placeholderName.replace(/_/g, ' ').toUpperCase();
+                                activeZone.appendChild(prompt);
+                                activeZone.classList.add('paste-zone--has-image');
+                                imageStorage[placeholderName] = e.target.result;
+                            };
+                            reader.readAsDataURL(blob);
+                            return; // Keluar setelah memproses gambar
+                        }
                     }
                 }
+                // Jika tidak ada gambar di clipboard, biarkan event paste BoQ yang menanganinya
             });
 
             const handleGenerate = async (endpoint, button) => {
@@ -289,6 +289,73 @@
                 const originalText = copyBtn.textContent;
                 copyBtn.textContent = 'Tersalin!';
                 setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
+            });
+
+            boqBody.addEventListener('focusin', (e) => {
+                if (e.target.classList.contains('boq-input') && e.target.value === '0') {
+                    e.target.select();
+                }
+            });
+
+            boqBody.addEventListener('focusout', (e) => {
+                if (e.target.classList.contains('boq-input') && e.target.value === '') {
+                    e.target.value = '0';
+                }
+            });
+
+            boqBody.addEventListener('keydown', (e) => {
+                const target = e.target;
+                if (!target.classList.contains('boq-input')) return;
+                const key = e.key;
+                if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) return;
+                e.preventDefault();
+                const currentCell = target.parentElement;
+                const currentRow = currentCell.parentElement;
+                const cellIndex = Array.from(currentRow.children).indexOf(currentCell);
+                const rowIndex = Array.from(boqBody.children).indexOf(currentRow);
+                let nextRow, nextCell;
+                if (key === 'ArrowUp' && rowIndex > 0) {
+                    nextRow = boqBody.children[rowIndex - 1];
+                    nextCell = nextRow.children[cellIndex];
+                } else if (key === 'ArrowDown' && rowIndex < boqBody.children.length - 1) {
+                    nextRow = boqBody.children[rowIndex + 1];
+                    nextCell = nextRow.children[cellIndex];
+                } else if (key === 'ArrowLeft' && cellIndex > 2) {
+                    nextCell = currentRow.children[cellIndex - 1];
+                } else if (key === 'ArrowRight' && cellIndex < currentRow.children.length - 1) {
+                    nextCell = currentRow.children[cellIndex + 1];
+                }
+                if (nextCell && nextCell.querySelector('.boq-input')) {
+                    nextCell.querySelector('.boq-input').focus();
+                }
+            });
+
+            boqBody.addEventListener('paste', (e) => {
+                const target = e.target;
+                if (!target.classList.contains('boq-input')) return;
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                const rowsData = pastedText.split(/[\r\n]+/).filter(row => row).map(row => row.split('\t'));
+                const startCell = target.parentElement;
+                const startRow = startCell.parentElement;
+                const startCellIndex = Array.from(startRow.children).indexOf(startCell);
+                const startRowIndex = Array.from(boqBody.children).indexOf(startRow);
+                rowsData.forEach((rowData, rIndex) => {
+                    const targetRowIndex = startRowIndex + rIndex;
+                    if (targetRowIndex < boqBody.children.length) {
+                        const targetRow = boqBody.children[targetRowIndex];
+                        rowData.forEach((cellData, cIndex) => {
+                            const targetCellIndex = startCellIndex + cIndex;
+                            if (targetCellIndex < targetRow.children.length) {
+                                const targetCell = targetRow.children[targetCellIndex];
+                                const input = targetCell.querySelector('.boq-input');
+                                if (input) {
+                                    input.value = cellData.trim() === '-' || cellData.trim() === '' ? '0' : cellData.trim();
+                                }
+                            }
+                        });
+                    }
+                });
             });
         });
     </script>
