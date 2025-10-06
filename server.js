@@ -30,7 +30,13 @@ const uploadFields = [
     { name: 'branching', maxCount: 1 }, { name: 'end_to_end', maxCount: 1 },
     { name: 'mancore', maxCount: 1 }, { name: 'peta', maxCount: 1 }
 ];
-const upload = multer({ dest: 'uploads/' });
+
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: {
+        fieldSize: 50 * 1024 * 1024 // Batas 50MB untuk data teks (base64)
+    }
+});
 
 const documentHandler = (req, res, templateName, outputPrefix) => {
     const uploadedFilePaths = [];
