@@ -19,20 +19,50 @@ Sebuah aplikasi web sederhana untuk mengotomatiskan pembuatan dokumen **Berita A
 
 Sebelum memulai, pastikan di komputer Anda sudah terinstal:
 
-  - **Node.js**: Versi 16 atau yang lebih baru direkomendasikan. Anda bisa mengunduhnya di [nodejs.org](https://nodejs.org/).
+  - **Node.js**: Versi 16 atau yang lebih baru direkomendasikan.
+
+### Panduan Instalasi Node.js untuk Pemula
+
+Jika Anda belum pernah menginstal Node.js, ikuti langkah-langkah mudah berikut:
+
+1.  **Kunjungi Situs Resmi Node.js**
+
+      * Buka browser Anda dan pergi ke [https://nodejs.org/](https://nodejs.org/).
+
+2.  **Pilih Versi yang Tepat**
+
+      * Di halaman utama, Anda akan melihat dua pilihan unduhan. Pilih versi **LTS** (Long Term Support). Ini adalah versi yang paling stabil dan direkomendasikan untuk sebagian besar pengguna.
+
+3.  **Unduh dan Jalankan Installer**
+
+      * Situs web akan secara otomatis mendeteksi sistem operasi Anda (Windows atau Mac). Klik tombol LTS untuk mengunduh file installer (`.msi` untuk Windows, `.pkg` untuk Mac).
+      * Setelah unduhan selesai, buka file tersebut.
+      * Ikuti petunjuk instalasi yang muncul di layar. Anda tidak perlu mengubah pengaturan apa pun, cukup klik **"Next"** atau **"Continue"** sampai proses instalasi selesai.
+
+4.  **Verifikasi Instalasi**
+
+      * Setelah instalasi selesai, buka **terminal** baru (di Mac) atau **Command Prompt** baru (di Windows).
+      * Ketik perintah berikut dan tekan Enter untuk memeriksa versi Node.js:
+        ```bash
+        node -v
+        ```
+      * Jika instalasi berhasil, akan muncul nomor versi seperti `v18.17.1` atau yang lebih baru.
+      * Ketik juga perintah berikut untuk memeriksa versi `npm` (yang terinstal bersama Node.js):
+        ```bash
+        npm -v
+        ```
+      * Jika ini juga menampilkan nomor versi, berarti Node.js sudah siap digunakan\!
 
 -----
 
-## 🚀 Instalasi & Penyiapan
+## 🚀 Instalasi & Penyiapan Aplikasi
 
-Ikuti langkah-langkah berikut untuk menjalankan aplikasi ini di komputer Anda.
+Setelah Node.js terinstal, ikuti langkah-langkah berikut untuk menjalankan aplikasi ini.
 
 ### Langkah 1: Unduh Kode Proyek
 
 1.  Buka browser dan kunjungi alamat [https://github.com/jerico-c/bact-baut-generator](https://github.com/jerico-c/bact-baut-generator).
-
 2.  Klik tombol hijau **`< > Code`**, lalu pilih **`Download ZIP`**.
-
 3.  Setelah file ZIP terunduh, **ekstrak** isinya ke lokasi yang Anda inginkan di komputer Anda.
 
 ### Langkah 2: Install Dependensi
