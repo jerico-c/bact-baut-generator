@@ -35,7 +35,7 @@ Ikuti langkah-langkah berikut untuk menjalankan aplikasi ini di komputer Anda.
 
 3.  Setelah file ZIP terunduh, **ekstrak** isinya ke lokasi yang Anda inginkan di komputer Anda.
 
-### Langkah 3: Install Dependensi
+### Langkah 2: Install Dependensi
 
 1.  Buka **terminal** atau **Command Prompt** di dalam folder proyek Anda yang sudah diekstrak.
 2.  Jalankan perintah berikut untuk menginstal semua *library* yang dibutuhkan. Proses ini mungkin memakan waktu beberapa saat.
@@ -43,7 +43,7 @@ Ikuti langkah-langkah berikut untuk menjalankan aplikasi ini di komputer Anda.
     npm install
     ```
 
-### Langkah 4: Jalankan Server
+### Langkah 3: Jalankan Server
 
 Setelah instalasi selesai, jalankan server dengan perintah:
 
