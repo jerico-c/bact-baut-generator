@@ -32,6 +32,14 @@
         .paste-zone--has-image:hover .paste-zone__prompt { opacity: 1; }
         .paste-zone img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
+        .paste-zone__clear {
+            position: absolute; top: 6px; right: 6px; z-index: 2;
+            background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%;
+            width: 24px; height: 24px; line-height: 24px; text-align: center; cursor: pointer;
+            display: none; font-weight: bold;
+        }
+        .paste-zone--has-image .paste-zone__clear { display: inline-block; }
+
         .button-group { display: flex; gap: 1rem; }
         .submit-btn {
             flex: 1;
@@ -65,6 +73,26 @@
             </fieldset>
 
             <fieldset>
+                <legend>IHLD / eProposal / STO</legend>
+                <p style="margin-top:0; font-size:0.9rem; color:#555;">Tempel (Ctrl+V) 1 baris dari spreadsheet (format: IHLD\tEProposal\tSTO), contoh: <code>11188011\tC25MUN233717\tMUN</code>.</p>
+                <textarea id="lopPaste" placeholder="Paste di sini: IHLD\tEProposal\tSTO" style="width:100%; height:70px; box-sizing:border-box;"></textarea>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top:0.75rem;">
+                    <div>
+                        <label for="ihld_lop_id">IHLD LoP ID</label>
+                        <input type="text" id="ihld_lop_id" name="ihld_lop_id" placeholder="contoh: 11188011">
+                    </div>
+                    <div>
+                        <label for="eprop_lop_id">eProposal LoP ID</label>
+                        <input type="text" id="eprop_lop_id" name="eprop_lop_id" placeholder="contoh: C25MUN233717">
+                    </div>
+                    <div>
+                        <label for="sto">STO</label>
+                        <input type="text" id="sto" name="sto" placeholder="contoh: MUN">
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
                 <legend>Detail Bill of Quantity (BoQ) - untuk BAUT</legend>
                 <table class="boq-table">
                     <thead>
@@ -77,11 +105,16 @@
                     </thead>
                     <tbody id="boq-body"></tbody>
                 </table>
+                <label style="display:block; margin-top:0.5rem; font-size:0.9rem;"><input type="checkbox" id="useBoqAuto" name="use_boq_auto"> Gunakan BOQ otomatis saat Generate BAUT</label>
             </fieldset>
 
             <fieldset>
                 <legend>Upload / Paste / Drag & Drop Gambar Bukti</legend>
                 <div class="paste-grid" id="pasteGrid"></div>
+                <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+                    <button type="button" id="clearAllBtn" class="submit-btn" style="background:#6c757d; flex:0 0 auto; padding:0.6rem 0.9rem; font-size:0.95rem;">Kosongkan Semua Gambar</button>
+                    <button type="button" id="resetFormBtn" class="submit-btn" style="background:#999; flex:0 0 auto; padding:0.6rem 0.9rem; font-size:0.95rem;">Reset Form</button>
+                </div>
             </fieldset>
             
             <div class="button-group">
@@ -108,6 +141,38 @@
             const missingFilesSection = document.getElementById('missingFilesSection');
             const missingFilesTextarea = document.getElementById('missingFilesTextarea');
             const copyBtn = document.getElementById('copyBtn');
+            const lopPaste = document.getElementById('lopPaste');
+            const ihldInput = document.getElementById('ihld_lop_id');
+            const epropInput = document.getElementById('eprop_lop_id');
+            const stoInput = document.getElementById('sto');
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            const resetFormBtn = document.getElementById('resetFormBtn');
+
+            // Parse a TSV/whitespace line into IHLD, EPROP, STO
+            const parseLopLine = (line) => {
+                if (!line) return;
+                const parts = line.trim().split(/\s+|\t+/).filter(Boolean);
+                if (parts.length >= 3) {
+                    ihldInput.value = parts[0];
+                    epropInput.value = parts[1];
+                    stoInput.value = parts[2];
+                }
+            };
+
+            // Handle paste into the dedicated textarea
+            lopPaste.addEventListener('paste', (e) => {
+                setTimeout(() => {
+                    const text = lopPaste.value || (e.clipboardData && e.clipboardData.getData('text')) || '';
+                    const line = (text || '').split(/\r?\n/).find(l => l.trim().length > 0) || '';
+                    parseLopLine(line);
+                }, 0);
+            });
+
+            // Also parse when user types directly
+            lopPaste.addEventListener('input', () => {
+                const line = (lopPaste.value || '').split(/\r?\n/).find(l => l.trim().length > 0) || '';
+                parseLopLine(line);
+            });
 
             const boqItems = [
                 "SC-OF-SM-24", "OS-SM-1", "PC-APC/UPC-652-A1", "PC-UPC-652-2", "ODP Solid-PB-8 AS",
@@ -126,12 +191,41 @@
             });
 
             const placeholders = [
-                'foto_odp', 'klem_ring', 'pipa', 'closure', 'in_odc', 'testcom', 'port1', 'port2', 'port3', 'port4', 'port5', 'port6', 'port7', 'port8', 'in_odp', 'label_odp', 'termin', 'barcode', 'splitter', 'distri', 'feeder', 'odc', 'survey', 'survey2', 'branching', 'end_to_end', 'mancore', 'peta'
+                'foto_odp', 'klem_ring', 'pipa', 'closure', 'in_odc', 'testcom', 'port1', 'port2', 'port3', 'port4', 'port5', 'port6', 'port7', 'port8', 'in_odp', 'termin', 'barcode', 'splitter', 'distri', 'feeder', 'odc', 'survey', 'survey2', 'branching', 'end_to_end', 'mancore', 'peta'
             ];
             const labelMap = { 'klem_ring': 'KLEM-RING-5-LUBANG', 'closure': 'SC-OF-SM-24', 'in_odc': 'Redaman Input ODC', 'testcom': 'TESTCOM', 'in_odp': 'IN ODP', 'barcode': 'BARCODE', 'splitter': 'SPLIITER 1:4', 'distri': 'PANEL DISTRIBUSI', 'feeder': 'FEEDER', 'odc': 'FOTO ODC', 'survey': 'SURVEY', 'survey2': 'SURVEY 2', 'branching': 'SAMBUNGAN BRANCHING', 'foto_odp': 'ODP-PB-8-8 Solid lengkap', 'pipa': 'Pipa paralon', 'label_odp': 'LABEL ODP', 'termin': 'TERMINASI', 'end_to_end': 'FORM OPM', 'mancore': 'MANCORE', 'peta': 'PETA LOKASI' };
 
             let activeZone = null;
             const imageStorage = {};
+
+            const setZonePrompt = (zone) => {
+                const placeholderName = zone.dataset.placeholder;
+                const prompt = document.createElement('span');
+                prompt.className = 'paste-zone__prompt';
+                prompt.textContent = placeholderName.replace(/_/g, ' ').toUpperCase();
+                zone.appendChild(prompt);
+            };
+
+            const attachClearButton = (zone) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'paste-zone__clear';
+                btn.title = 'Hapus gambar';
+                btn.textContent = '×';
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    clearZone(zone);
+                });
+                zone.appendChild(btn);
+            };
+
+            const clearZone = (zone) => {
+                const placeholderName = zone.dataset.placeholder;
+                delete imageStorage[placeholderName];
+                zone.classList.remove('paste-zone--has-image');
+                zone.innerHTML = '';
+                setZonePrompt(zone);
+            };
 
             const handleFile = (file, zone) => {
                 const placeholderName = zone.dataset.placeholder;
@@ -142,10 +236,8 @@
                     const img = document.createElement('img');
                     img.src = e.target.result;
                     zone.appendChild(img);
-                    const prompt = document.createElement('span');
-                    prompt.className = 'paste-zone__prompt';
-                    prompt.textContent = placeholderName.replace(/_/g, ' ').toUpperCase();
-                    zone.appendChild(prompt);
+                    setZonePrompt(zone);
+                    attachClearButton(zone);
                     zone.classList.add('paste-zone--has-image');
                 };
                 reader.readAsDataURL(file);
@@ -155,10 +247,7 @@
                 const zone = document.createElement('div');
                 zone.className = 'paste-zone';
                 zone.dataset.placeholder = name;
-                const prompt = document.createElement('span');
-                prompt.className = 'paste-zone__prompt';
-                prompt.textContent = name.replace(/_/g, ' ').toUpperCase();
-                zone.appendChild(prompt);
+                setZonePrompt(zone);
                 grid.appendChild(zone);
                 zone.addEventListener('click', () => {
                     if (activeZone) activeZone.classList.remove('paste-zone--listening');
@@ -175,13 +264,14 @@
             });
 
             window.addEventListener('paste', event => {
-                if (event.target.closest('.boq-table') || event.target === lopInput) return;
-                
+                // Don't hijack paste when user is typing into any input/textarea (including IHLD/eProp/STO and BOQ)
+                if (event.target.closest('input, textarea') || event.target.closest('.boq-table')) return;
+
                 if (!activeZone) return;
 
                 event.preventDefault();
 
-                const items = Array.from(event.clipboardData.items);
+                const items = Array.from(event.clipboardData.items || []);
                 const imageItem = items.find(item => item.type === 'image/png') ||
                                   items.find(item => item.type === 'image/jpeg') ||
                                   items.find(item => item.type.startsWith('image/'));
@@ -197,15 +287,40 @@
                         
                         activeZone.innerHTML = '';
                         activeZone.appendChild(img);
-                        
-                        const prompt = document.createElement('span');
-                        prompt.className = 'paste-zone__prompt';
-                        prompt.textContent = placeholderName.replace(/_/g, ' ').toUpperCase();
-                        activeZone.appendChild(prompt);
+                        setZonePrompt(activeZone);
+                        attachClearButton(activeZone);
                         activeZone.classList.add('paste-zone--has-image');
                     };
                     reader.readAsDataURL(blob);
                 }
+            });
+
+            clearAllBtn.addEventListener('click', () => {
+                const zones = Array.from(document.querySelectorAll('.paste-zone'));
+                zones.forEach(z => clearZone(z));
+                activeZone = null;
+                missingFilesSection.style.display = 'none';
+            });
+
+            resetFormBtn.addEventListener('click', () => {
+                // Clear images and storage
+                const zones = Array.from(document.querySelectorAll('.paste-zone'));
+                zones.forEach(z => clearZone(z));
+                for (const key in imageStorage) delete imageStorage[key];
+                activeZone = null;
+
+                // Reset form fields
+                generatorForm.reset();
+                lopPaste.value = '';
+                ihldInput.value = '';
+                epropInput.value = '';
+                stoInput.value = '';
+                // Reset BOQ to 0 explicitly
+                document.querySelectorAll('.boq-input').forEach(inp => inp.value = '0');
+
+                // Hide missing files section
+                missingFilesSection.style.display = 'none';
+                missingFilesTextarea.value = '';
             });
 
             const handleGenerate = async (endpoint, button) => {
@@ -255,6 +370,8 @@
                         const errorText = await response.text();
                         throw new Error(`Server: ${errorText}`);
                     }
+                    // Optional: surface any render warnings from server
+                    const warnings = response.headers.get('X-Render-Warnings');
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -272,6 +389,9 @@
                     a.click();
                     window.URL.revokeObjectURL(url);
                     a.remove();
+                    if (warnings && warnings.trim()) {
+                        alert(`Catatan saat rendering:\n${warnings}`);
+                    }
                 } catch (error) {
                     console.error('Gagal membuat dokumen:', error);
                     alert(`Terjadi kesalahan: ${error.message}`);
